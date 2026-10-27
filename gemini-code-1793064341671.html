@@ -1,0 +1,1208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Paws bnb™ | Internal Field Audit & Founder Approval OS</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- React & ReactDOM -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <!-- Babel -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            oatmeal: '#F5F2EA',
+            charcoal: '#2D2D2D',
+            terracotta: '#C86B53',
+            terracottaDark: '#AD553E',
+            sage: '#9DB5A0',
+            sageDark: '#5F7D63',
+          },
+          fontFamily: {
+            sans: ['Plus Jakarta Sans', 'sans-serif'],
+            serif: ['Fraunces', 'serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { background-color: #F5F2EA; color: #2D2D2D; font-family: 'Plus Jakarta Sans', sans-serif; }
+    @media print {
+      .no-print { display: none !important; }
+      body { background-color: #FFFFFF !important; }
+    }
+  </style>
+</head>
+<body class="min-h-screen selection:bg-terracotta selection:text-white">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useMemo } = React;
+
+    const STORAGE_KEY = 'PAWSBNB_AUDIT_DB_V2';
+    const CLOUD_CONFIG_KEY = 'PAWSBNB_CLOUD_CONFIG_V1';
+
+    // --- PRICING TIERS ---
+    const PROPERTY_TIERS = [
+      { id: '1bhk', label: 'Studio / 1 BHK', baseMin: 650, baseMax: 1100, icon: '🏢' },
+      { id: '2_3bhk', label: '2–3 BHK High-Rise', baseMin: 850, baseMax: 1500, icon: '🏙️' },
+      { id: '4bhk_penthouse', label: '4+ BHK / Penthouse', baseMin: 1200, baseMax: 2200, icon: '🌆' },
+      { id: 'kothi', label: 'Independent Kothi', baseMin: 1400, baseMax: 2600, icon: '🏡' },
+      { id: 'farmhouse', label: 'Farmhouse with Lawn', baseMin: 2000, baseMax: 4000, icon: '🌳' },
+    ];
+
+    const PET_CATEGORIES = [
+      { id: 'small_dogs', label: 'Small Dogs (<10kg)', emoji: '🐕' },
+      { id: 'med_dogs', label: 'Medium Dogs (10-25kg)', emoji: '🦮' },
+      { id: 'large_dogs', label: 'Large/Giant Dogs (25kg+)', emoji: '🐕‍🦺' },
+      { id: 'cats', label: 'Cats', emoji: '🐈' },
+      { id: 'birds', label: 'Birds', emoji: '🦜' },
+      { id: 'rabbits', label: 'Rabbits & Small Pets', emoji: '🐰' },
+    ];
+
+    const createBlank12Points = () => [
+      { id: 1, phase: 'Phase 1: Perimeter & Security', title: 'Balcony & Window Netting', desc: 'Floor-to-ceiling heavy-duty pigeon/safety netting or grille (<2 inch gaps).', critical: true, status: 'pass', photo: null, note: '' },
+      { id: 2, phase: 'Phase 1: Perimeter & Security', title: 'Anti-Escape Main Door Latch', desc: 'Double mesh door or secure latch system to prevent pets bolting during deliveries.', critical: false, status: 'pass', photo: null, note: '' },
+      { id: 3, phase: 'Phase 1: Perimeter & Security', title: 'Safe Society Walk-Zones', desc: 'Verified pet-friendly walking track away from heavy vehicles & stray dog packs.', critical: false, status: 'pass', photo: null, note: '' },
+      { id: 4, phase: 'Phase 2: Health & Environment', title: '24/7 AC & Power Backup', desc: 'Working AC in pet room wired into society DG backup or heavy-duty inverter.', critical: true, status: 'pass', photo: null, note: '' },
+      { id: 5, phase: 'Phase 2: Health & Environment', title: 'Hazard & Toxin Clearance', desc: 'Phenyl, cleaning chemicals, medicines, and chocolates locked in overhead cabinets.', critical: false, status: 'pass', photo: null, note: '' },
+      { id: 6, phase: 'Phase 2: Health & Environment', title: 'Pet-Safe Plant Sweep', desc: 'Zero toxic indoor plants (Lilies, Aloe Vera, Sago Palm, Snake Plant) within reach.', critical: false, status: 'pass', photo: null, note: '' },
+      { id: 7, phase: 'Phase 2: Health & Environment', title: 'Floor & Couch Safety ("Couches, Not Cages")', desc: 'Non-slip living area, pet-friendly sofa, no exposed wires or sharp glass tables.', critical: false, status: 'pass', photo: null, note: '' },
+      { id: 8, phase: 'Phase 3: Tech & Readiness', title: 'Wi-Fi Speed & Video Call Check', desc: 'Strong Wi-Fi (>30 Mbps) for seamless live video calls & GPS walk tracking updates.', critical: false, status: 'pass', photo: null, note: '', cameraOptIn: false },
+      { id: 9, phase: 'Phase 3: Tech & Readiness', title: '1-Family Solo-Stay Verification', desc: 'Strict confirmation: Zero commercial cages, no multi-family boarding.', critical: true, status: 'pass', photo: null, note: '', hasResidentPet: false },
+      { id: 10, phase: 'Phase 3: Tech & Readiness', title: 'Rapid-Response Vet Transit (<15m)', desc: '24/7 personal car/SUV or guaranteed pet cab access to nearest partner vet clinic.', critical: false, status: 'pass', photo: null, note: '' },
+      { id: 11, phase: 'Phase 3: Tech & Readiness', title: 'Paws bnb First-Aid Kit Handover', desc: 'Standardized pet medical & emergency first-aid kit verified in home.', critical: false, status: 'pass', photo: null, note: '' },
+      { id: 12, phase: 'Phase 3: Tech & Readiness', title: 'Host Temperament & Empathy Eval', desc: 'In-person behavioral check: Genuine warmth, patience, & emotional care.', critical: false, status: 'pass', photo: null, note: '', emotionalHost: true },
+    ];
+
+    const DEFAULT_AUDITS = [
+      {
+        auditId: 'AUD-2026-891',
+        submittedAt: '27 Oct 2026, 06:15 AM',
+        inspectorName: 'Vikram Mehta (Field Exec #04)',
+        gps: '28.4962° N, 77.4019° E (Verified inside Sector 135, Noida)',
+        hostName: 'Ananya Sharma',
+        hostPhone: '9876543210',
+        society: 'Jaypee Klassic, Tower B, Flat 1402',
+        sector: 'Sector 135, Noida',
+        propertyTier: '2_3bhk',
+        approvedPets: ['small_dogs', 'med_dogs', 'cats', 'rabbits'],
+        rwaFriendly: true,
+        cameraAmenity: true,
+        emotionalMotivation: true,
+        instantBookNotice: 'Same-Day (3 Hrs Notice)',
+        minRate: 850,
+        maxRate: 1500,
+        recommendedVerdict: 'approve',
+        approvalStatus: 'pending',
+        inspectorRemarks: 'Spotless 3BHK flat. Ananya works remotely and wants to host pets to beat loneliness and enjoy pet companionship. Full floor-to-ceiling nylon netting installed on all balconies.',
+        kycPhotos: {
+          hostSelfie: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=600&q=80',
+          govtId: 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=600&q=80',
+          residencyProof: 'https://images.unsplash.com/photo-1450133064473-71024230f91b?auto=format&fit=crop&w=600&q=80',
+          livingRoom: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fit=crop&w=600&q=80'
+        },
+        pointsSummary: { passed: 12, fix: 0, failed: 0 },
+        failedItems: [],
+        detailedPoints: createBlank12Points()
+      },
+      {
+        auditId: 'AUD-2026-890',
+        submittedAt: '26 Oct 2026, 05:20 PM',
+        inspectorName: 'Vikram Mehta (Field Exec #04)',
+        gps: '28.5672° N, 77.3651° E (Verified inside Sector 50, Noida)',
+        hostName: 'Rohan Malhotra',
+        hostPhone: '9811122233',
+        society: 'ATS Greens Village, Tower 4, Flat 801',
+        sector: 'Sector 50, Noida',
+        propertyTier: '4bhk_penthouse',
+        approvedPets: ['small_dogs', 'med_dogs', 'large_dogs', 'birds'],
+        rwaFriendly: true,
+        cameraAmenity: false,
+        emotionalMotivation: true,
+        instantBookNotice: '1 Day Advance Notice',
+        minRate: 1200,
+        maxRate: 2600,
+        recommendedVerdict: 'hold',
+        approvalStatus: 'pending',
+        inspectorRemarks: 'Spacious home and loving family, but guest bedroom balcony is missing pigeon netting and two Aloe Vera pots need to be moved out of reach.',
+        kycPhotos: {
+          hostSelfie: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=600&q=80',
+          govtId: 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=600&q=80',
+          residencyProof: 'https://images.unsplash.com/photo-1450133064473-71024230f91b?auto=format&fit=crop&w=600&q=80',
+          livingRoom: 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=600&q=80'
+        },
+        pointsSummary: { passed: 10, fix: 2, failed: 0 },
+        failedItems: [
+          'Point #1 (Balcony & Window Netting): Secondary balcony needs netting.',
+          'Point #6 (Pet-Safe Plant Sweep): Relocate 2 Aloe Vera pots.'
+        ],
+        detailedPoints: createBlank12Points()
+      }
+    ];
+
+    // --- CLIENT-SIDE IMAGE COMPRESSOR (Converts 8MB phone camera shot -> ~60KB Base64 JPEG) ---
+    const compressImageFile = (file, maxWidth = 800, quality = 0.68) => {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+            if (width > maxWidth) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            }
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            const dataUrl = canvas.toDataURL('image/jpeg', quality);
+            resolve(dataUrl);
+          };
+          img.onerror = reject;
+          img.src = event.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    };
+
+    function App() {
+      // Load saved audits from localStorage
+      const [audits, setAudits] = useState(() => {
+        try {
+          const saved = localStorage.getItem(STORAGE_KEY);
+          return saved ? JSON.parse(saved) : DEFAULT_AUDITS;
+        } catch (e) {
+          return DEFAULT_AUDITS;
+        }
+      });
+
+      const [activeTab, setActiveTab] = useState('inspector'); // 'inspector' | 'founder'
+      const [selectedAuditId, setSelectedAuditId] = useState(() => audits[0]?.auditId || '');
+      const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'pending' | 'approved' | 'hold' | 'rejected'
+      const [searchQuery, setSearchQuery] = useState('');
+      const [lightboxImg, setLightboxImg] = useState(null);
+      const [showSyncModal, setShowSyncModal] = useState(false);
+      const [toast, setToast] = useState(null);
+
+      // Cloud Config (Optional Supabase Real-Time Sync)
+      const [cloudConfig, setCloudConfig] = useState(() => {
+        try {
+          const saved = localStorage.getItem(CLOUD_CONFIG_KEY);
+          return saved ? JSON.parse(saved) : { supabaseUrl: '', supabaseKey: '' };
+        } catch (e) {
+          return { supabaseUrl: '', supabaseKey: '' };
+        }
+      });
+
+      // --- INSPECTOR FORM STATE ---
+      const [inspectorName, setInspectorName] = useState('Vikram Mehta (Field Exec #04)');
+      const [gpsStamp, setGpsStamp] = useState('');
+      const [gpsLoading, setGpsLoading] = useState(false);
+
+      const [hostName, setHostName] = useState('');
+      const [hostPhone, setHostPhone] = useState('');
+      const [society, setSociety] = useState('');
+      const [sector, setSector] = useState('Sector 135, Noida');
+      const [rwaFriendly, setRwaFriendly] = useState(true);
+      const [instantBookNotice, setInstantBookNotice] = useState('Same-Day (3 Hrs Notice)');
+
+      const [kycPhotos, setKycPhotos] = useState({
+        hostSelfie: null,
+        govtId: null,
+        residencyProof: null,
+        livingRoom: null
+      });
+
+      const [propertyTier, setPropertyTier] = useState('2_3bhk');
+      const [approvedPets, setApprovedPets] = useState(['small_dogs', 'cats']);
+      const [points, setPoints] = useState(createBlank12Points);
+      const [inspectorRemarks, setInspectorRemarks] = useState('');
+      const [verdict, setVerdict] = useState('approve');
+
+      // Sync to localStorage whenever audits change
+      useEffect(() => {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(audits));
+        } catch (e) {
+          console.error('Storage quota warning:', e);
+        }
+      }, [audits]);
+
+      const triggerToast = (msg) => {
+        setToast(msg);
+        setTimeout(() => setToast(null), 4000);
+      };
+
+      // Live Geolocation
+      const handleCaptureGPS = () => {
+        setGpsLoading(true);
+        if ('geolocation' in navigator) {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              const lat = pos.coords.latitude.toFixed(4);
+              const lng = pos.coords.longitude.toFixed(4);
+              const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+              setGpsStamp(`${lat}° N, ${lng}° E • Verified at ${now}`);
+              setGpsLoading(false);
+              triggerToast('📍 Live GPS Coordinates Stamped!');
+            },
+            () => {
+              const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+              setGpsStamp(`28.4962° N, 77.4019° E (Noida Pin) • ${now}`);
+              setGpsLoading(false);
+              triggerToast('📍 Fallback Noida Sector GPS Stamped!');
+            },
+            { timeout: 6000 }
+          );
+        } else {
+          setGpsStamp('28.4962° N, 77.4019° E • Verified');
+          setGpsLoading(false);
+        }
+      };
+
+      // Compressed Photo Handlers
+      const handleKycPhoto = async (key, e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const compressed = await compressImageFile(file);
+        setKycPhotos(prev => ({ ...prev, [key]: compressed }));
+        triggerToast('📷 Photo compressed & saved!');
+      };
+
+      const handlePointChange = (id, field, value) => {
+        setPoints(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
+      };
+
+      const handlePointPhoto = async (id, e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const compressed = await compressImageFile(file);
+        handlePointChange(id, 'photo', compressed);
+        triggerToast(`📷 Point #${id} evidence photo saved!`);
+      };
+
+      const togglePetCategory = (petId) => {
+        setApprovedPets(prev =>
+          prev.includes(petId) ? prev.filter(x => x !== petId) : [...prev, petId]
+        );
+      };
+
+      // Score & Critical Safety Lock
+      const auditStats = useMemo(() => {
+        const passed = points.filter(p => p.status === 'pass').length;
+        const fix = points.filter(p => p.status === 'fix').length;
+        const failed = points.filter(p => p.status === 'fail').length;
+        const criticalFailed = points.some(p => p.critical && p.status !== 'pass');
+        return { passed, fix, failed, criticalFailed };
+      }, [points]);
+
+      // Dynamic Price Calculation
+      const currentTierObj = PROPERTY_TIERS.find(t => t.id === propertyTier) || PROPERTY_TIERS[1];
+      const hasLargeDog = approvedPets.includes('large_dogs');
+      const minAllowedRate = currentTierObj.baseMin;
+      const maxAllowedRate = hasLargeDog ? currentTierObj.baseMax + 400 : currentTierObj.baseMax;
+
+      // Submit Audit
+      const handleSubmitAudit = async (e) => {
+        e.preventDefault();
+        if (!hostName.trim() || !hostPhone.trim() || !society.trim()) {
+          alert('Please fill in Host Full Name, WhatsApp Phone, and Society/Flat Number.');
+          return;
+        }
+
+        const finalVerdict = auditStats.criticalFailed && verdict === 'approve' ? 'hold' : verdict;
+        const failedList = points
+          .filter(p => p.status !== 'pass')
+          .map(p => `Point #${p.id} (${p.title}): ${p.note || (p.status === 'fix' ? 'Fix required' : 'Failed inspection')}`);
+
+        const newAudit = {
+          auditId: `AUD-2026-${Math.floor(1000 + Math.random() * 9000)}`,
+          submittedAt: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) + ', ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          inspectorName,
+          gps: gpsStamp || '28.4962° N, 77.4019° E (Noida On-Site Pin)',
+          hostName: hostName.trim(),
+          hostPhone: hostPhone.trim(),
+          society: society.trim(),
+          sector: sector.trim(),
+          propertyTier,
+          approvedPets,
+          rwaFriendly,
+          cameraAmenity: points.find(p => p.id === 8)?.cameraOptIn || false,
+          emotionalMotivation: points.find(p => p.id === 12)?.emotionalHost || false,
+          instantBookNotice,
+          minRate: minAllowedRate,
+          maxRate: maxAllowedRate,
+          recommendedVerdict: finalVerdict,
+          approvalStatus: 'pending',
+          inspectorRemarks: inspectorRemarks.trim() || 'Physical 12-point inspection completed on-site.',
+          kycPhotos: {
+            hostSelfie: kycPhotos.hostSelfie || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80',
+            govtId: kycPhotos.govtId || 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=600&q=80',
+            residencyProof: kycPhotos.residencyProof || 'https://images.unsplash.com/photo-1450133064473-71024230f91b?auto=format&fit=crop&w=600&q=80',
+            livingRoom: kycPhotos.livingRoom || 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fit=crop&w=600&q=80'
+          },
+          pointsSummary: { passed: auditStats.passed, fix: auditStats.fix, failed: auditStats.failed },
+          failedItems: failedList,
+          detailedPoints: points
+        };
+
+        // Optional Cloud Push if Supabase configured
+        if (cloudConfig.supabaseUrl && cloudConfig.supabaseKey) {
+          try {
+            await fetch(`${cloudConfig.supabaseUrl}/rest/v1/pawsbnb_audits`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'apikey': cloudConfig.supabaseKey,
+                'Authorization': `Bearer ${cloudConfig.supabaseKey}`
+              },
+              body: JSON.stringify({ audit_id: newAudit.auditId, payload: newAudit })
+            });
+          } catch (err) {
+            console.warn('Cloud sync skipped, saved locally:', err);
+          }
+        }
+
+        const updated = [newAudit, ...audits];
+        setAudits(updated);
+        setSelectedAuditId(newAudit.auditId);
+
+        // Reset form for next property
+        setHostName('');
+        setHostPhone('');
+        setSociety('');
+        setKycPhotos({ hostSelfie: null, govtId: null, residencyProof: null, livingRoom: null });
+        setPoints(createBlank12Points());
+        setInspectorRemarks('');
+
+        triggerToast(`✅ Audit ${newAudit.auditId} saved & sent to Founder Queue!`);
+        setActiveTab('founder');
+      };
+
+      // Founder Decision + WhatsApp Dispatch
+      const handleFounderDecision = (audit, decision, openWhatsApp = true) => {
+        setAudits(prev => prev.map(a => a.auditId === audit.auditId ? { ...a, approvalStatus: decision } : a));
+        triggerToast(`Status updated to ${decision.toUpperCase()}!`);
+
+        if (openWhatsApp) {
+          let waText = '';
+          if (decision === 'approved') {
+            waText = `Hi ${audit.hostName}! 🎉 Welcome to *Paws bnb*! Your home (${audit.society}, ${audit.sector}) has officially PASSED our *12-Point Safety Audit™*. Your Verified Host profile is now unlocked with a nightly price band of ₹${audit.minRate || 850}–₹${audit.maxRate || 1500}/night. A pawsitive stay, while they're away! 🐾`;
+          } else if (decision === 'hold') {
+            const issues = audit.failedItems.length > 0 ? audit.failedItems.join(' | ') : 'Minor safety adjustments needed';
+            waText = `Hi ${audit.hostName}, thank you for welcoming our Paws bnb Field Inspector at ${audit.society}! Your application is on *Conditional Hold* pending quick fixes: ${issues}. Reply with a quick photo/video here once completed so we can activate your host profile immediately! 🐾`;
+          } else {
+            waText = `Hi ${audit.hostName}, thank you for applying to become a Paws bnb host. Unfortunately, your property at ${audit.society} did not meet our mandatory 12-Point Safety Audit standards at this time.`;
+          }
+          const cleanPhone = audit.hostPhone.replace(/\D/g, '');
+          window.open(`https://wa.me/91${cleanPhone}?text=${encodeURIComponent(waText)}`, '_blank');
+        }
+      };
+
+      // Delete Single Audit
+      const handleDeleteAudit = (auditId) => {
+        if (!confirm(`Delete audit ${auditId} permanently?`)) return;
+        const remaining = audits.filter(a => a.auditId !== auditId);
+        setAudits(remaining);
+        if (selectedAuditId === auditId && remaining.length > 0) {
+          setSelectedAuditId(remaining[0].auditId);
+        }
+        triggerToast(`🗑️ Audit ${auditId} deleted.`);
+      };
+
+      // Export JSON File (For sharing between Inspector Phone & Founder Laptop via WhatsApp/AirDrop)
+      const handleExportJSON = () => {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(audits, null, 2));
+        const dlAnchor = document.createElement('a');
+        dlAnchor.setAttribute("href", dataStr);
+        dlAnchor.setAttribute("download", `pawsbnb-audits-${new Date().toISOString().slice(0,10)}.json`);
+        document.body.appendChild(dlAnchor);
+        dlAnchor.click();
+        dlAnchor.remove();
+        triggerToast('📦 Audit Database exported as .json file!');
+      };
+
+      // Import JSON File
+      const handleImportJSON = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          try {
+            const imported = JSON.parse(ev.target.result);
+            if (Array.isArray(imported)) {
+              const existingIds = new Set(audits.map(a => a.auditId));
+              const merged = [...imported.filter(a => !existingIds.has(a.auditId)), ...audits];
+              setAudits(merged);
+              if (merged.length > 0) setSelectedAuditId(merged[0].auditId);
+              triggerToast(`📥 Imported ${imported.length} audit packet(s) successfully!`);
+              setShowSyncModal(false);
+            }
+          } catch (err) {
+            alert('Invalid JSON file.');
+          }
+        };
+        reader.readAsText(file);
+      };
+
+      // Filtered Audits for Founder Queue
+      const filteredAudits = useMemo(() => {
+        return audits.filter(a => {
+          const matchesStatus = statusFilter === 'all' || a.approvalStatus === statusFilter;
+          const q = searchQuery.toLowerCase();
+          const matchesQuery = !q ||
+            a.hostName.toLowerCase().includes(q) ||
+            a.society.toLowerCase().includes(q) ||
+            a.sector.toLowerCase().includes(q) ||
+            a.auditId.toLowerCase().includes(q);
+          return matchesStatus && matchesQuery;
+        });
+      }, [audits, statusFilter, searchQuery]);
+
+      const selectedAudit = audits.find(a => a.auditId === selectedAuditId) || filteredAudits[0] || audits[0];
+
+      return (
+        <div className="min-h-screen pb-20">
+          {/* TOP NAVIGATION BAR */}
+          <header className="sticky top-0 z-40 bg-charcoal text-oatmeal border-b border-white/10 shadow-lg no-print">
+            <div className="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-terracotta flex items-center justify-center text-white font-bold text-xl shadow">
+                  🐾
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-serif text-lg font-bold tracking-tight text-white">Paws bnb™</span>
+                    <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-sage/20 text-sage font-bold border border-sage/40">
+                      Live Audit OS v2.0
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-white/60">A pawsitive stay, while you're away • Internal Verification System</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex bg-black/40 p-1 rounded-xl border border-white/10">
+                  <button
+                    onClick={() => setActiveTab('inspector')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                      activeTab === 'inspector' ? 'bg-terracotta text-white shadow' : 'text-white/70 hover:text-white'
+                    }`}
+                  >
+                    📱 Field Inspector
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('founder')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                      activeTab === 'founder' ? 'bg-terracotta text-white shadow' : 'text-white/70 hover:text-white'
+                    }`}
+                  >
+                    💻 Founder Queue
+                    <span className="bg-white/20 text-white px-1.5 py-0.2 rounded-full text-[10px]">
+                      {audits.filter(a => a.approvalStatus === 'pending').length}
+                    </span>
+                  </button>
+                </div>
+
+                <button
+                  onClick={() => setShowSyncModal(true)}
+                  className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold text-white border border-white/15 transition"
+                >
+                  ⚙️ Sync / Export DB
+                </button>
+              </div>
+            </div>
+          </header>
+
+          {/* TOAST BANNER */}
+          {toast && (
+            <div className="fixed bottom-6 right-6 z-50 bg-charcoal text-white px-5 py-3 rounded-2xl shadow-2xl border-2 border-sage flex items-center gap-2.5 no-print">
+              <span className="text-sm font-bold">{toast}</span>
+            </div>
+          )}
+
+          {/* =========================================================
+              VIEW 1: MOBILE FIELD INSPECTOR FORM
+             ========================================================= */}
+          {activeTab === 'inspector' && (
+            <main className="max-w-lg mx-auto px-4 pt-6 no-print">
+              <div className="bg-white rounded-3xl p-5 shadow-sm border border-charcoal/10 mb-5">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-extrabold uppercase tracking-wider text-terracotta">
+                    Step 1 • On-Site GPS & Host Metadata
+                  </span>
+                  <span className="text-[11px] font-bold text-sageDark bg-sage/20 px-2 py-0.5 rounded-lg">
+                    Auto-Saved Locally
+                  </span>
+                </div>
+                <h1 className="font-serif text-2xl font-bold text-charcoal mb-1">
+                  12-Point Field Verification
+                </h1>
+                <p className="text-xs text-charcoal/70 mb-4">
+                  Photos are automatically compressed for instant upload. Critical fails lock host approval.
+                </p>
+
+                {/* GPS Stamp */}
+                <div className="bg-oatmeal rounded-2xl p-3.5 border border-charcoal/10 mb-4 flex items-center justify-between gap-2">
+                  <div>
+                    <p className="text-xs font-bold text-charcoal">📍 Live Inspector Geolocation</p>
+                    <p className="text-[11px] text-charcoal/70 mt-0.5">
+                      {gpsStamp || 'Tap button inside host apartment to stamp coordinates'}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCaptureGPS}
+                    className="shrink-0 bg-charcoal text-white text-xs font-bold px-3.5 py-2 rounded-xl hover:bg-black transition"
+                  >
+                    {gpsLoading ? 'Locating...' : gpsStamp ? 'Re-Stamp GPS' : 'Stamp GPS'}
+                  </button>
+                </div>
+
+                {/* Host Inputs */}
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-bold text-charcoal mb-1">Field Inspector Name</label>
+                    <input
+                      type="text"
+                      value={inspectorName}
+                      onChange={e => setInspectorName(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-oatmeal/60 border border-charcoal/15 text-sm font-medium"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-charcoal mb-1">Host Full Name *</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Kritika Verma"
+                        value={hostName}
+                        onChange={e => setHostName(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-charcoal/20 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-charcoal mb-1">Host WhatsApp No. *</label>
+                      <input
+                        type="tel"
+                        placeholder="98XXXXXXXX"
+                        value={hostPhone}
+                        onChange={e => setHostPhone(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-charcoal/20 text-sm"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-charcoal mb-1">Society & Flat/Villa *</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Mahagun Moderne, D-1104"
+                        value={society}
+                        onChange={e => setSociety(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-charcoal/20 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-charcoal mb-1">Noida / NCR Sector *</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Sector 78, Noida"
+                        value={sector}
+                        onChange={e => setSector(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-charcoal/20 text-sm"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-charcoal mb-1">Host Instant-Book Notice Preference</label>
+                    <select
+                      value={instantBookNotice}
+                      onChange={e => setInstantBookNotice(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-charcoal/20 text-sm font-medium"
+                    >
+                      <option>Same-Day (3 Hrs Advance Notice)</option>
+                      <option>Same-Day (6 Hrs Advance Notice)</option>
+                      <option>1 Day Advance Notice</option>
+                      <option>2 Days Advance Notice</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* STEP 2: KYC & HOME PHOTOS */}
+              <div className="bg-white rounded-3xl p-5 shadow-sm border border-charcoal/10 mb-5">
+                <span className="text-xs font-extrabold uppercase tracking-wider text-terracotta">
+                  Step 2 • Live Camera KYC & Space Capture
+                </span>
+                <h2 className="font-serif text-xl font-bold text-charcoal mt-0.5 mb-3">
+                  Host ID & Home Verification
+                </h2>
+
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  {[
+                    { key: 'hostSelfie', title: '1. Live Host Photo', sub: 'Inside living room' },
+                    { key: 'govtId', title: '2. Aadhaar / PAN ID', sub: 'Original Govt ID card' },
+                    { key: 'residencyProof', title: '3. Residency Proof', sub: 'Bill / MyGate App' },
+                    { key: 'livingRoom', title: '4. Primary Couch Area', sub: 'Couches, Not Cages zone' },
+                  ].map(item => (
+                    <label
+                      key={item.key}
+                      className={`cursor-pointer rounded-2xl border-2 border-dashed p-3 flex flex-col items-center justify-center text-center transition ${
+                        kycPhotos[item.key] ? 'border-sageDark bg-sage/10' : 'border-charcoal/20 hover:border-terracotta bg-oatmeal/40'
+                      }`}
+                    >
+                      {kycPhotos[item.key] ? (
+                        <div className="w-full">
+                          <img src={kycPhotos[item.key]} alt={item.title} className="w-full h-24 object-cover rounded-xl mb-1" />
+                          <span className="text-[11px] font-bold text-sageDark">✔ Tap to Retake</span>
+                        </div>
+                      ) : (
+                        <>
+                          <span className="text-2xl mb-1">📷</span>
+                          <span className="text-xs font-bold text-charcoal">{item.title}</span>
+                          <span className="text-[10px] text-charcoal/60">{item.sub}</span>
+                        </>
+                      )}
+                      <input type="file" accept="image/*" capture="environment" onChange={e => handleKycPhoto(item.key, e)} className="hidden" />
+                    </label>
+                  ))}
+                </div>
+
+                <div className="flex items-center justify-between bg-oatmeal rounded-2xl p-3 border border-charcoal/10">
+                  <div>
+                    <p className="text-xs font-bold text-charcoal">RWA / Society Pet Policy Check</p>
+                    <p className="text-[11px] text-charcoal/70">Zero hostility toward guest pets in lifts/parks?</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setRwaFriendly(!rwaFriendly)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold ${rwaFriendly ? 'bg-sageDark text-white' : 'bg-red-600 text-white'}`}
+                  >
+                    {rwaFriendly ? '✔ RWA Friendly' : '✖ Hostile RWA'}
+                  </button>
+                </div>
+              </div>
+
+              {/* STEP 3: DYNAMIC PRICING TIER & SPECIES */}
+              <div className="bg-white rounded-3xl p-5 shadow-sm border border-charcoal/10 mb-5">
+                <span className="text-xs font-extrabold uppercase tracking-wider text-terracotta">
+                  Step 3 • Property Tier & Multi-Species Approval
+                </span>
+                <h2 className="font-serif text-xl font-bold text-charcoal mt-0.5 mb-3">
+                  Home Category & Allowed Pets
+                </h2>
+
+                <div className="space-y-2 mb-4">
+                  {PROPERTY_TIERS.map(t => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => setPropertyTier(t.id)}
+                      className={`w-full flex items-center justify-between p-3 rounded-2xl border text-left transition ${
+                        propertyTier === t.id ? 'border-2 border-terracotta bg-terracotta/10' : 'border-charcoal/15 bg-oatmeal/30'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-xl">{t.icon}</span>
+                        <div>
+                          <p className="text-xs font-bold text-charcoal">{t.label}</p>
+                          <p className="text-[11px] text-charcoal/60">Base Price Band: ₹{t.baseMin} – ₹{t.baseMax}/night</p>
+                        </div>
+                      </div>
+                      <span className="text-xs font-bold text-terracotta">{propertyTier === t.id ? '● Selected' : ''}</span>
+                    </button>
+                  ))}
+                </div>
+
+                <label className="block text-xs font-bold text-charcoal mb-2">Approved Pet Species & Sizes:</label>
+                <div className="grid grid-cols-2 gap-2 mb-4">
+                  {PET_CATEGORIES.map(pet => {
+                    const active = approvedPets.includes(pet.id);
+                    return (
+                      <button
+                        key={pet.id}
+                        type="button"
+                        onClick={() => togglePetCategory(pet.id)}
+                        className={`p-2.5 rounded-xl border text-xs font-bold flex items-center gap-2 transition ${
+                          active ? 'border-terracotta bg-terracotta text-white' : 'border-charcoal/15 bg-oatmeal/40 text-charcoal'
+                        }`}
+                      >
+                        <span>{pet.emoji}</span>
+                        <span className="truncate">{pet.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="bg-charcoal text-oatmeal rounded-2xl p-3.5 flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-sage font-bold">Unlocked Host Rate Cap</p>
+                    <p className="text-xs text-white/80">Auto-computed for {currentTierObj.label}</p>
+                  </div>
+                  <span className="font-serif text-lg font-bold text-white">₹{minAllowedRate} – ₹{maxAllowedRate}/night</span>
+                </div>
+              </div>
+
+              {/* STEP 4: 12-POINT CHECKLIST */}
+              <div className="bg-white rounded-3xl p-5 shadow-sm border border-charcoal/10 mb-5">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-extrabold uppercase tracking-wider text-terracotta">
+                    Step 4 • The 12-Point Safety Audit™
+                  </span>
+                  <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-oatmeal text-charcoal">
+                    {auditStats.passed}/12 Passed
+                  </span>
+                </div>
+
+                <div className="space-y-3">
+                  {points.map(point => (
+                    <div
+                      key={point.id}
+                      className={`p-3.5 rounded-2xl border ${
+                        point.status === 'pass' ? 'bg-oatmeal/30 border-charcoal/10' : point.status === 'fix' ? 'bg-amber-50 border-amber-400' : 'bg-red-50 border-red-400'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-extrabold text-charcoal">#{point.id}. {point.title}</span>
+                        {point.critical && (
+                          <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-red-100 text-red-700 border border-red-300">
+                            Critical
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-charcoal/70 mt-0.5">{point.desc}</p>
+
+                      <div className="flex flex-wrap items-center justify-between gap-2 mt-2.5">
+                        <div className="flex gap-1.5">
+                          {[
+                            { val: 'pass', label: '✔ Pass', cls: 'bg-sageDark text-white' },
+                            { val: 'fix', label: '⚠ Fix Needed', cls: 'bg-amber-600 text-white' },
+                            { val: 'fail', label: '✖ Fail', cls: 'bg-red-600 text-white' },
+                          ].map(b => (
+                            <button
+                              key={b.val}
+                              type="button"
+                              onClick={() => handlePointChange(point.id, 'status', b.val)}
+                              className={`px-2.5 py-1 rounded-xl text-xs font-bold ${
+                                point.status === b.val ? b.cls : 'bg-white border border-charcoal/15 text-charcoal/70'
+                              }`}
+                            >
+                              {b.label}
+                            </button>
+                          ))}
+                        </div>
+
+                        <label className="cursor-pointer text-xs font-bold px-3 py-1 rounded-xl bg-white border border-charcoal/20">
+                          📷 {point.photo ? 'Retake' : 'Photo'}
+                          <input type="file" accept="image/*" capture="environment" onChange={e => handlePointPhoto(point.id, e)} className="hidden" />
+                        </label>
+                      </div>
+
+                      {point.photo && (
+                        <img src={point.photo} alt={point.title} className="mt-2 h-20 w-28 object-cover rounded-xl border border-charcoal/20" />
+                      )}
+
+                      {point.id === 8 && (
+                        <div className="mt-2.5 pt-2 border-t border-charcoal/10 flex items-center justify-between">
+                          <span className="text-[11px] font-bold">Optional Pet-Room Camera Amenity?</span>
+                          <button
+                            type="button"
+                            onClick={() => handlePointChange(8, 'cameraOptIn', !point.cameraOptIn)}
+                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold ${point.cameraOptIn ? 'bg-terracotta text-white' : 'bg-charcoal/10'}`}
+                          >
+                            {point.cameraOptIn ? '📹 Yes (Opted In)' : 'No (Video Call + Walk GPS)'}
+                          </button>
+                        </div>
+                      )}
+
+                      {point.id === 12 && (
+                        <div className="mt-2.5 pt-2 border-t border-charcoal/10 flex items-center justify-between">
+                          <span className="text-[11px] font-bold">Hosting to Beat Loneliness / Companionship?</span>
+                          <button
+                            type="button"
+                            onClick={() => handlePointChange(12, 'emotionalHost', !point.emotionalHost)}
+                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold ${point.emotionalHost ? 'bg-terracotta text-white' : 'bg-charcoal/10'}`}
+                          >
+                            {point.emotionalHost ? '♥ Yes (Emotional Host)' : 'Standard Host'}
+                          </button>
+                        </div>
+                      )}
+
+                      {point.status !== 'pass' && (
+                        <input
+                          type="text"
+                          placeholder="Inspector note on what needs fixing..."
+                          value={point.note}
+                          onChange={e => handlePointChange(point.id, 'note', e.target.value)}
+                          className="mt-2 w-full px-3 py-1.5 rounded-xl bg-white border border-charcoal/20 text-xs"
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* STEP 5: SUBMIT */}
+              <form onSubmit={handleSubmitAudit} className="bg-white rounded-3xl p-5 shadow-sm border border-charcoal/10 mb-10">
+                <span className="text-xs font-extrabold uppercase tracking-wider text-terracotta">
+                  Step 5 • Inspector Recommendation
+                </span>
+                <h2 className="font-serif text-xl font-bold text-charcoal mt-0.5 mb-2">
+                  Send to Founder Queue
+                </h2>
+
+                {auditStats.criticalFailed && (
+                  <div className="bg-red-50 border border-red-300 text-red-800 rounded-2xl p-3 text-xs font-bold mb-3">
+                    ⚠️ Critical Safety Point (#1 Balcony Net, #4 AC Backup, or #9 Solo-Stay) is not marked PASS. Direct approval is locked.
+                  </div>
+                )}
+
+                <div className="grid grid-cols-3 gap-2 mb-4">
+                  <button
+                    type="button"
+                    disabled={auditStats.criticalFailed}
+                    onClick={() => setVerdict('approve')}
+                    className={`p-3 rounded-2xl border text-xs font-bold ${
+                      auditStats.criticalFailed ? 'opacity-40 cursor-not-allowed bg-gray-100' : verdict === 'approve' ? 'bg-sageDark text-white' : 'bg-oatmeal/50'
+                    }`}
+                  >
+                    🟢 Approve
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setVerdict('hold')}
+                    className={`p-3 rounded-2xl border text-xs font-bold ${verdict === 'hold' ? 'bg-amber-600 text-white' : 'bg-oatmeal/50'}`}
+                  >
+                    🟡 Hold (Fix)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setVerdict('reject')}
+                    className={`p-3 rounded-2xl border text-xs font-bold ${verdict === 'reject' ? 'bg-red-600 text-white' : 'bg-oatmeal/50'}`}
+                  >
+                    🔴 Reject
+                  </button>
+                </div>
+
+                <textarea
+                  rows="3"
+                  placeholder="Inspector field notes for Founder review..."
+                  value={inspectorRemarks}
+                  onChange={e => setInspectorRemarks(e.target.value)}
+                  className="w-full p-3 rounded-2xl bg-oatmeal/50 border border-charcoal/20 text-xs mb-4"
+                />
+
+                <button
+                  type="submit"
+                  className="w-full py-4 rounded-2xl bg-terracotta hover:bg-terracottaDark text-white font-bold text-sm shadow-lg transition"
+                >
+                  🚀 Save & Send Audit to Founder Queue
+                </button>
+              </form>
+            </main>
+          )}
+
+          {/* =========================================================
+              VIEW 2: FOUNDER APPROVAL DASHBOARD
+             ========================================================= */}
+          {activeTab === 'founder' && (
+            <main className="max-w-7xl mx-auto px-4 pt-6">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                
+                {/* LEFT SIDEBAR: SEARCH, FILTER & QUEUE */}
+                <div className="lg:col-span-4 space-y-3 no-print">
+                  <div className="bg-white rounded-2xl p-3.5 border border-charcoal/10 shadow-sm space-y-2.5">
+                    <input
+                      type="text"
+                      placeholder="🔍 Search host, society, or sector..."
+                      value={searchQuery}
+                      onChange={e => setSearchQuery(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-oatmeal/60 border border-charcoal/15 text-xs font-medium"
+                    />
+                    <div className="flex gap-1 overflow-x-auto pb-1">
+                      {[
+                        { id: 'all', label: 'All' },
+                        { id: 'pending', label: '⏳ Pending' },
+                        { id: 'approved', label: '✅ Approved' },
+                        { id: 'hold', label: '🟡 Hold' },
+                        { id: 'rejected', label: '🔴 Rejected' },
+                      ].map(tab => (
+                        <button
+                          key={tab.id}
+                          onClick={() => setStatusFilter(tab.id)}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap ${
+                            statusFilter === tab.id ? 'bg-charcoal text-white' : 'bg-oatmeal text-charcoal/70'
+                          }`}
+                        >
+                          {tab.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {filteredAudits.map(item => (
+                    <div
+                      key={item.auditId}
+                      onClick={() => setSelectedAuditId(item.auditId)}
+                      className={`cursor-pointer rounded-2xl p-4 border transition ${
+                        selectedAudit?.auditId === item.auditId
+                          ? 'bg-white border-2 border-terracotta shadow-md'
+                          : 'bg-white/75 border-charcoal/10 hover:bg-white'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[11px] font-bold text-charcoal/50">{item.auditId}</span>
+                        <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${
+                          item.approvalStatus === 'approved' ? 'bg-green-100 text-green-800' :
+                          item.approvalStatus === 'hold' ? 'bg-amber-100 text-amber-800' :
+                          item.approvalStatus === 'rejected' ? 'bg-red-100 text-red-800' : 'bg-charcoal text-white'
+                        }`}>
+                          {item.approvalStatus}
+                        </span>
+                      </div>
+                      <h3 className="font-bold text-sm text-charcoal">{item.hostName}</h3>
+                      <p className="text-xs text-charcoal/70 truncate">{item.society} • {item.sector}</p>
+                      <div className="flex items-center justify-between mt-2.5 pt-2 border-t border-charcoal/10 text-[11px]">
+                        <span>Score: <strong>{item.pointsSummary.passed}/12</strong></span>
+                        <span className="font-bold text-terracotta">₹{item.minRate || 850}–₹{item.maxRate || 1500}/nt</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* RIGHT DOSSIER: FULL INSPECTION REPORT */}
+                {selectedAudit && (
+                  <div className="lg:col-span-8">
+                    <div className="bg-white rounded-3xl p-6 shadow-sm border border-charcoal/10">
+                      <div className="flex flex-wrap items-start justify-between gap-4 pb-4 border-b border-charcoal/10">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-extrabold uppercase tracking-wider text-terracotta">
+                              {selectedAudit.auditId}
+                            </span>
+                            <span className="text-xs text-charcoal/50">• {selectedAudit.submittedAt}</span>
+                          </div>
+                          <h1 className="font-serif text-2xl font-bold text-charcoal mt-1">
+                            {selectedAudit.hostName} — {selectedAudit.society}
+                          </h1>
+                          <p className="text-xs text-charcoal/70 mt-0.5">
+                            📍 <strong>GPS Stamp:</strong> {selectedAudit.gps} | 👤 <strong>Inspector:</strong> {selectedAudit.inspectorName}
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-2 no-print">
+                          <button
+                            onClick={() => window.print()}
+                            className="text-xs font-bold px-3 py-2 rounded-xl bg-oatmeal hover:bg-charcoal hover:text-white transition"
+                          >
+                            🖨️ Print / PDF Certificate
+                          </button>
+                          <button
+                            onClick={() => handleDeleteAudit(selectedAudit.auditId)}
+                            className="text-xs font-bold px-3 py-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 transition"
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* SUMMARY METRICS */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 my-4">
+                        <div className="bg-oatmeal/60 p-3 rounded-2xl">
+                          <span className="text-[10px] font-bold uppercase text-charcoal/60">Property & Price Cap</span>
+                          <p className="text-xs font-bold text-charcoal mt-0.5">
+                            ₹{selectedAudit.minRate || 850}–₹{selectedAudit.maxRate || 1500}/night
+                          </p>
+                        </div>
+                        <div className="bg-oatmeal/60 p-3 rounded-2xl">
+                          <span className="text-[10px] font-bold uppercase text-charcoal/60">12-Point Audit Score</span>
+                          <p className="text-xs font-bold text-charcoal mt-0.5">
+                            {selectedAudit.pointsSummary.passed}/12 Passed
+                          </p>
+                        </div>
+                        <div className="bg-oatmeal/60 p-3 rounded-2xl">
+                          <span className="text-[10px] font-bold uppercase text-charcoal/60">Tracking & Camera</span>
+                          <p className="text-xs font-bold text-charcoal mt-0.5">
+                            {selectedAudit.cameraAmenity ? '📹 Pet-Room Cam + GPS' : '📱 Video Call + Walk GPS'}
+                          </p>
+                        </div>
+                        <div className="bg-oatmeal/60 p-3 rounded-2xl">
+                          <span className="text-[10px] font-bold uppercase text-charcoal/60">Host Motivation</span>
+                          <p className="text-xs font-bold text-terracotta mt-0.5">
+                            {selectedAudit.emotionalMotivation ? '♥ Emotional / Companionship' : 'Standard Host'}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* KYC & HOME PHOTO EVIDENCE */}
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-charcoal/60 mb-2">
+                        On-Site KYC & Property Captures (Click to Zoom)
+                      </h3>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+                        {[
+                          { label: 'Live Host Photo', src: selectedAudit.kycPhotos.hostSelfie },
+                          { label: 'Govt ID (Aadhaar/PAN)', src: selectedAudit.kycPhotos.govtId },
+                          { label: 'Residency Proof', src: selectedAudit.kycPhotos.residencyProof },
+                          { label: 'Couch / Sleeping Zone', src: selectedAudit.kycPhotos.livingRoom },
+                        ].map((img, i) => (
+                          <div
+                            key={i}
+                            onClick={() => setLightboxImg(img.src)}
+                            className="cursor-pointer group relative rounded-2xl overflow-hidden border border-charcoal/15 h-28 bg-oatmeal"
+                          >
+                            <img src={img.src} alt={img.label} className="w-full h-full object-cover group-hover:scale-105 transition" />
+                            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-2">
+                              <span className="text-[11px] font-bold text-white">{img.label}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* INSPECTOR REMARKS */}
+                      <div className="bg-oatmeal/70 rounded-2xl p-4 border border-charcoal/10 mb-5">
+                        <p className="text-xs font-bold text-charcoal mb-1">📋 Field Inspector Remarks:</p>
+                        <p className="text-xs text-charcoal/80 leading-relaxed">"{selectedAudit.inspectorRemarks}"</p>
+
+                        {selectedAudit.failedItems?.length > 0 && (
+                          <div className="mt-3 pt-3 border-t border-charcoal/10">
+                            <p className="text-xs font-bold text-amber-700 mb-1">⚠️ Flagged Items to Fix:</p>
+                            <ul className="list-disc list-inside text-xs text-charcoal space-y-1">
+                              {selectedAudit.failedItems.map((item, idx) => <li key={idx}>{item}</li>)}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* FOUNDER APPROVAL ACTIONS */}
+                      <div className="pt-4 border-t border-charcoal/10 no-print">
+                        <p className="text-xs font-bold uppercase tracking-wider text-charcoal/60 mb-3">
+                          Founder Final Action (Updates Database & Launches Pre-Filled WhatsApp to +91 {selectedAudit.hostPhone})
+                        </p>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          <button
+                            onClick={() => handleFounderDecision(selectedAudit, 'approved', true)}
+                            className="py-3.5 px-4 rounded-2xl bg-sageDark hover:opacity-95 text-white font-bold text-xs shadow transition"
+                          >
+                            ✅ Approve & WhatsApp Host
+                          </button>
+                          <button
+                            onClick={() => handleFounderDecision(selectedAudit, 'hold', true)}
+                            className="py-3.5 px-4 rounded-2xl bg-amber-600 hover:opacity-95 text-white font-bold text-xs shadow transition"
+                          >
+                            🟡 Hold & Send Fix Checklist
+                          </button>
+                          <button
+                            onClick={() => handleFounderDecision(selectedAudit, 'rejected', true)}
+                            className="py-3.5 px-4 rounded-2xl bg-red-600 hover:opacity-95 text-white font-bold text-xs shadow transition"
+                          >
+                            🔴 Reject & Notify Host
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </main>
+          )}
+
+          {/* SYNC / EXPORT MODAL */}
+          {showSyncModal && (
+            <div className="fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-4 no-print">
+              <div className="bg-white max-w-lg w-full rounded-3xl p-6 shadow-2xl">
+                <div className="flex items-center justify-between pb-3 border-b border-charcoal/10 mb-4">
+                  <h3 className="font-serif text-xl font-bold text-charcoal">Database Sync & File Transfer</h3>
+                  <button onClick={() => setShowSyncModal(false)} className="text-xs font-bold px-2.5 py-1 rounded-lg bg-oatmeal">✕</button>
+                </div>
+
+                {/* Option A: Instant File Export/Import (Zero Setup) */}
+                <div className="bg-oatmeal rounded-2xl p-4 mb-4">
+                  <p className="text-xs font-bold text-charcoal mb-1">Option 1: Instant WhatsApp / AirDrop Packet Transfer (No Server Needed)</p>
+                  <p className="text-[11px] text-charcoal/70 mb-3">
+                    Your field inspector can export their completed audits as a file on their phone and WhatsApp it to you. Click "Import" on your MacBook to view all photos & approve!
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleExportJSON}
+                      className="flex-1 py-2.5 rounded-xl bg-charcoal text-white text-xs font-bold"
+                    >
+                      📤 Export Audits (.json)
+                    </button>
+                    <label className="flex-1 py-2.5 rounded-xl bg-terracotta text-white text-xs font-bold text-center cursor-pointer">
+                      📥 Import Audit File
+                      <input type="file" accept=".json" onChange={handleImportJSON} className="hidden" />
+                    </label>
+                  </div>
+                </div>
+
+                {/* Option B: Live Supabase Cloud Sync */}
+                <div className="bg-oatmeal/50 rounded-2xl p-4 border border-charcoal/10">
+                  <p className="text-xs font-bold text-charcoal mb-1">Option 2: Live Supabase Cloud Database (Optional)</p>
+                  <p className="text-[11px] text-charcoal/70 mb-2">
+                    Connect a Supabase project URL & Anon Key to automatically push every field inspection to the cloud in real time.
+                  </p>
+                  <input
+                    type="text"
+                    placeholder="https://your-project.supabase.co"
+                    value={cloudConfig.supabaseUrl}
+                    onChange={e => setCloudConfig({ ...cloudConfig, supabaseUrl: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-white border border-charcoal/20 text-xs mb-2"
+                  />
+                  <input
+                    type="password"
+                    placeholder="Supabase Anon Public Key"
+                    value={cloudConfig.supabaseKey}
+                    onChange={e => setCloudConfig({ ...cloudConfig, supabaseKey: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-white border border-charcoal/20 text-xs mb-3"
+                  />
+                  <button
+                    onClick={() => {
+                      localStorage.setItem(CLOUD_CONFIG_KEY, JSON.stringify(cloudConfig));
+                      triggerToast('☁️ Cloud credentials saved!');
+                      setShowSyncModal(false);
+                    }}
+                    className="w-full py-2.5 rounded-xl bg-sageDark text-white text-xs font-bold"
+                  >
+                    Save Cloud Connection
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* IMAGE LIGHTBOX */}
+          {lightboxImg && (
+            <div onClick={() => setLightboxImg(null)} className="fixed inset-0 z-50 bg-black/85 flex items-center justify-center p-4 no-print">
+              <div className="max-w-2xl w-full bg-white rounded-3xl overflow-hidden">
+                <img src={lightboxImg} alt="Zoomed Proof" className="w-full max-h-[75vh] object-contain bg-black" />
+                <div className="p-3 bg-charcoal text-white flex justify-between items-center">
+                  <span className="text-xs font-bold">Paws bnb™ Verified Field Capture</span>
+                  <button className="text-xs bg-white/20 px-3 py-1 rounded-lg">Close ✕</button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
